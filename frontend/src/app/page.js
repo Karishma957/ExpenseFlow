@@ -3,10 +3,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { 
-  Utensils, Plane, Zap, Film, Box, 
-  Trash2, Plus, Wallet, Edit3, X, Tag
-} from 'lucide-react';
+import { Utensils, Plane, Zap, Film, Box, Trash2, Plus, Wallet, Edit3 } from 'lucide-react';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -32,10 +29,15 @@ export default function Home() {
   const fetchData = async () => {
     try {
       const expRes = await axios.get(API_URL);
-      setExpenses(expRes.data);
+      if (Array.isArray(expRes.data)) {
+        setExpenses(expRes.data);
+      } else {
+        console.error("Invalid data format:", expRes.data);
+        setExpenses([]);
+      }
       const rateRes = await axios.get('https://api.exchangerate-api.com/v4/latest/USD');
       setRates(rateRes.data.rates);
-    } catch (error) { console.error("API Error:", error); }
+    } catch (error) { console.error("API Error:", error); setExpenses([]); }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -54,12 +56,14 @@ export default function Home() {
   const handleDelete = async (id) => { await axios.delete(`${API_URL}${id}/`); fetchData(); };
   const handleEdit = (exp) => { setFormData({ ...exp }); setCurrency('USD'); setEditingId(exp.id); };
   const convert = (amt) => (amt * rates[currency]).toLocaleString(undefined, { minimumFractionDigits: 2 });
-  const total = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+  
+  // Safe reduce
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
+  const total = safeExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] px-6 py-12 flex flex-col items-center font-sans text-slate-900">
       <div className="w-full max-w-5xl space-y-10">
-        
         <header className="bg-white rounded-[2.5rem] shadow-2xl border border-white overflow-hidden">
           <div className="bg-slate-900 px-10 py-8 flex justify-between items-center text-white">
             <div className="flex items-center gap-5">
@@ -78,25 +82,23 @@ export default function Home() {
             <h3 className="text-xs font-black uppercase text-slate-400 mb-10 flex items-center gap-2">
                {editingId ? <Edit3 size={18} /> : <Plus size={18} />} {editingId ? 'Modify Record' : 'Quick Add Entry'}
             </h3>
-            
             <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl mx-auto flex flex-col items-center">
               <div className="w-full space-y-6">
                 <div className="flex items-center gap-8">
                   <label className="w-32 text-[11px] font-black text-slate-400 uppercase">Description:</label>
-                  <input type="text" placeholder="Rent, Groceries..." className="flex-1 m-5 p-4 bg-slate-50 rounded-2xl border border-transparent focus:border-indigo-200 outline-none font-bold text-sm" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required />
+                  <input type="text" placeholder="Rent, Groceries..." className="flex-1 p-4 bg-slate-50 rounded-2xl border border-transparent focus:border-indigo-200 outline-none font-bold text-sm" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required />
                 </div>
                 <div className="flex items-center gap-8">
-                  <label className="w-32 text-[11px] font-black text-slate-400 uppercase">Amount:     </label>
+                  <label className="w-32 text-[11px] font-black text-slate-400 uppercase">Amount:</label>
                   <input type="number" step="0.01" className="flex-1 p-4 bg-slate-50 rounded-2xl border border-transparent focus:border-indigo-200 outline-none font-bold text-sm" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required />
                 </div>
                 <div className="flex items-center gap-8">
-                  <label className="w-32 text-[11px] font-black text-slate-400 uppercase">Category:     </label>
+                  <label className="w-32 text-[11px] font-black text-slate-400 uppercase">Category:</label>
                   <select className="flex-1 p-4 bg-slate-50 rounded-2xl outline-none font-bold text-sm cursor-pointer" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
                     {Object.keys(catConfig).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
-              
               <button type="submit" className="mt-8 bg-indigo-600 text-white px-12 py-4 rounded-2xl font-black text-sm hover:bg-indigo-700 transition shadow-xl shadow-indigo-100">
                 {editingId ? 'Update Record' : 'Confirm Entry'}
               </button>
@@ -105,14 +107,13 @@ export default function Home() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
-          
           <div className="bg-white rounded-[2.5rem] p-12 shadow-2xl border border-white flex flex-col items-center h-[650px]">
             <h3 className="text-xl font-black text-slate-800 mb-12 self-start underline decoration-indigo-200 underline-offset-8">Analytics</h3>
             <div className="w-full max-w-[280px] relative mb-12">
               <Doughnut data={{
                 labels: Object.keys(catConfig),
                 datasets: [{
-                  data: Object.keys(catConfig).map(c => expenses.filter(e => e.category === c).reduce((s, x) => s + parseFloat(x.amount), 0)),
+                  data: Object.keys(catConfig).map(c => safeExpenses.filter(e => e.category === c).reduce((s, x) => s + parseFloat(x.amount), 0)),
                   backgroundColor: Object.values(catConfig).map(v => v.color),
                   borderWidth: 0,
                 }]
@@ -122,23 +123,11 @@ export default function Home() {
                 <span className="text-lg font-black text-indigo-600">Insights</span>
               </div>
             </div>
-            <div className="w-full space-y-3 overflow-y-auto pr-2">
-              {Object.keys(catConfig).map(cat => (
-                <div key={cat} className="flex justify-between items-center p-4 rounded-2xl bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                   <div className="flex items-center gap-3">
-                     <div className="w-3 h-3 rounded-full" style={{backgroundColor: catConfig[cat].color}}></div>
-                     {catConfig[cat].icon} <span className="text-[11px] font-black uppercase text-slate-500">{cat}</span>
-                   </div>
-                   <span className="text-sm font-black text-slate-900">{currency} {convert(expenses.filter(e => e.category === cat).reduce((s, x) => s + parseFloat(x.amount), 0))}</span>
-                </div>
-              ))}
-            </div>
           </div>
-
           <div className="bg-white rounded-[2.5rem] p-12 shadow-2xl border border-white flex flex-col h-[650px]">
             <h3 className="text-xl font-black text-slate-800 mb-10 flex items-center gap-3 underline decoration-indigo-200 underline-offset-8">Recent History</h3>
             <div className="flex-1 overflow-y-auto pr-4 space-y-4">
-              {expenses.map(exp => {
+              {safeExpenses.map(exp => {
                 const config = catConfig[exp.category];
                 return (
                   <div key={exp.id} className="flex items-center justify-between p-6 bg-white rounded-[2rem] border border-slate-50 hover:border-indigo-100 transition-all group">
@@ -161,7 +150,6 @@ export default function Home() {
               })}
             </div>
           </div>
-
         </div>
       </div>
     </div>
