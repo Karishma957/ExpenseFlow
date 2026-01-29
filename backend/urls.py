@@ -1,9 +1,7 @@
 from django.contrib import admin
-from django.urls import path
-from api import views
+from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/expenses/', views.expense_list),
-    path('api/expenses/<int:pk>/', views.expense_detail),
+    path('api/', include('api.urls')), 
 ]
