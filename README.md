@@ -3,7 +3,7 @@
 Live link: https://expense-flow-c6pa5czmr-karishma957s-projects.vercel.app/
 
 ## Project Demo
-[Click here to watch the ExpenseFlow Demo](./Expense_Tracker.mov)
+[Click here to watch the ExpenseFlow Demo](./ExpenseTracker.mp4)
 
 ExpenseFlow is a professional-grade full-stack dashboard built with Next.js 16 and Django REST Framework. It features a centered, high-breathability UI designed to track expenses across different currencies with real-time analytics.
 
